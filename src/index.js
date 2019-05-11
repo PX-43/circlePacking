@@ -9,15 +9,30 @@ const resizeCanvas = () => {
 window.addEventListener('resize',  resizeCanvas);
 resizeCanvas();
 
-const circles = [];
+const MAX_CIRCLES = 5000;
+const LARGEST_COLOUR = '#f08613';
+const DEFAULT_COLOUR = '#769df0';
+let circles = [];
+let mustExpand = true;
 
-const createCircle = (x, y, r) => {
+const keyHandler = e => {
+
+    if(e.key === 'ArrowDown'){
+        mustExpand = false;
+    } else if( e.key === 'ArrowUp' ){
+        mustExpand = true;
+    }
+};
+
+window.addEventListener('keydown', keyHandler);
+
+const createCircle = (x, y, r, colour) => {
     ctx.beginPath();
     ctx.arc(x, y, r, 0, 2 * Math.PI, false);
-    ctx.fillStyle = 'green';
+    ctx.fillStyle = colour;
     ctx.fill();
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#65f061';
+    //ctx.lineWidth = 5;
+    //ctx.strokeStyle = '#65f061';
     ctx.stroke();
 };
 
@@ -74,25 +89,46 @@ const touchingOtherCircle = (cx, cy, r) => {
     return false;
 };
 
+const getCircleWithLargestRadius = () => {
+    if(circles.length === 0)
+        return 0;
+
+    return circles.reduce((prev, current) => prev.radius > current.radius ? prev : current);
+};
+
 const circle = () => {
     let radius = 0;
     let xyPos = getPos();
     let cx = xyPos.cx;
     let cy =  xyPos.cy;
     let canGrow = true;
+    let mustDelete = false;
     return {
         get cx() { return cx; },
         get cy() { return cy; },
         get radius() { return radius; },
+        get mustDelete() { return mustDelete; },
         drawCircle(){
-            if(canGrow) {
-                if(touchingEdge(cx, cy, radius) || touchingOtherCircle(cx, cy, radius)) {
-                    canGrow = false;
+
+            if(mustExpand){
+                if(canGrow) {
+                    if(touchingEdge(cx, cy, radius) || touchingOtherCircle(cx, cy, radius)) {
+                        canGrow = false;
+                    } else {
+                        radius++;
+                    }
+                }
+            } else {
+                if(radius > 0){
+                    radius--;
                 } else {
-                    radius++;
+                    mustDelete = true;
                 }
             }
-            createCircle( cx,  cy,  radius);
+
+            const largest = getCircleWithLargestRadius();
+            const colour = largest.radius <= radius ? LARGEST_COLOUR : DEFAULT_COLOUR;
+            createCircle( cx,  cy, radius, colour);
         }
     }
 };
@@ -102,10 +138,16 @@ const draw = () => {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  circles.push(new circle());
+  if(circles.length <= MAX_CIRCLES)
+    circles.push(new circle());
 
   circles.forEach(c => c.drawCircle());
+
+  circles = circles.filter(c => !c.mustDelete);
 };
 
 
 draw();
+
+//console.log('%c hey tob!', 'background: #000; color: #bada55');
+
